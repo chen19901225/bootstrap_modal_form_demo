@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="http://cdn.staticfile.org/twitter-bootstrap/3.3.5/css/bootstrap.css">
+    <link rel="stylesheet" href="/static/one.css">
+
+</head>
+<body>
+<div id="load" align="center">
+    <img src="/static/loading.gif" height="28" width="28" align="absmiddle">
+</div>
+<button class="btn btn-primary" data-toggle="modal" data-target="#add_channel_modal">添加渠道</button>
+<div class="modal fade" aria-hidden="true" id="add_channel_modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="close" type="button" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span><span class="sr-only">Close</span>
+                </button>
+                <h3 class="modal-title">添加渠道</h3>
+            </div><!-- div.modal-header -->
+            <div class="modal-body">
+                <form action="/channel/add" role="form" class="form-horizontal" id="add_channel_form" method="post">
+
+                    <div class="form-group">
+                        <label for="agent_id" class="col-sm-3 control-label">agent_id:</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" id="agent_id" name="agent_id"
+                                   placeholder="Agent_id">
+                        </div>
+
+                    </div><!-- div.form-group -->
+
+                    <div class="form-group">
+                        <label for="channel_name" class="col-sm-3 control-label">name:</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" id="channel_name" name="channel_name"
+                                   placeholder="渠道名称">
+                        </div>
+
+                    </div><!-- div.form-group -->
+                    <input type="submit" class="hidden" id="form_submit">
+                </form>
+            </div><!-- div.modal-body -->
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+                <!--<button type="submit" class="btn btn-primary submit">保存</button> -->
+                <input type="submit" class="btn btn-primary submit" value="保存">
+            </div><!-- div.modal-footer -->
+
+        </div><!-- modal-content -->
+    </div><!-- div.modal-dialog -->
+</div><!-- div.modal -->
+
+<div class="modal fade" id="msg_modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true"> &times;</span><span class="sr-only">Close</span>
+
+                </button>
+                <h4 class="model-title">消息提示</h4>
+
+            </div><!-- div.modal-header -->
+            <div class="modal-body bg-classes">
+                <p class="bg-success"></p>
+            </div><!-- div.modal-body -->
+        </div><!-- div.modal-content -->
+    </div><!-- div.modal-dialog -->
+</div><!-- div.modal -->
+<script src="http://cdn.staticfile.org/jquery/1.9.1/jquery.js"></script>
+<script src="http://cdn.staticfile.org/jquery.form/3.51/jquery.form.js"></script>
+
+<script src="http://cdn.staticfile.org/twitter-bootstrap/3.3.5/js/bootstrap.js"></script>
+<script src="http://cdn.staticfile.org/jquery-validate/1.14.0/jquery.validate.js"></script>
+<script>
+    $(function () {
+
+        $("#load").hide();
+
+        var $add_channel_form = $('#add_channel_form');
+        $.validator.addMethod('unique_name', function (value, ele, param) {
+            var agent_id = $("#agent_id").val();
+            if (!agent_id) {
+                return false;
+            }
+            var target_url = $.validator.format("/validate/{0}/{1}?t={2}", agent_id, value, $.now());
+            var is_success = false;
+            $.ajax({
+                type: 'GET',
+                url: target_url,
+                dataType: 'json',
+                async: false,
+                success: function (data) {
+                    is_success = (data['status'] == 'ok');
+                }
+            });
+
+            return is_success;
+
+        }, "渠道已添加过");
+        var validator = $add_channel_form.validate({
+            'errorElement': 'span',
+            errorClass: 'help-block',
+            focusInvalid: true,
+            rules: {
+                'agent_id': {required: true},
+                channel_name: {
+                    required: true, maxlength: 255, remote: {
+                        type: 'POST',
+                        url: '/validate/channel',
+                        data: {
+                            agent_id: function () {
+                                return $('#agent_id').val()
+                            },
+                            channel_name: function () {
+                                return $('#channel_name').val()
+                            }
+                        }
+                    }
+                }
+            },
+            messages: {
+                agent_id: {required: 'agent_id is required'},
+                channel_name: {required: 'channel_name is required', maxlength: '最大长度为255', unique_name: '渠道名已添加过'}
+            },
+            highlight: function (element) {
+                $(element).closest('.form-group').addClass('has-error');
+            },
+            success: function (label) {
+                label.closest('.form-group').removeClass('has-error');
+                label.remove();
+            },
+            errorPlacement: function (error, element) {
+                element.parent('div').append(error);
+            },
+            submitHandler: function (form) {
+                $("#load").fadeIn();
+
+                $(form).ajaxSubmit({
+                    url: '/channel/new',
+                    'success': function (data) {
+                        $("#load").fadeOut();
+
+                        if (data['status'] == 'success') {
+                            $("#add_channel_modal").modal("hide");
+                            var $msg_modal = $("#msg_modal");
+                            $msg_modal.find('div.modal-body p').html("<h3>添加渠道成功!</h3>");
+                            $msg_modal.modal();
+                        }
+                    }
+                });
+            }
+        });
+
+        $('#add_channel_modal input.submit').click(function () {
+            //validator.trigger('submit.validate');
+            $('#form_submit').click();
+        });
+
+        $("#add_channel_modal").on('hidden.bs.modal', function () {
+            $add_channel_form.find('span.help-block').remove();
+            $add_channel_form.find('.has-error').removeClass('has-error');
+        });
+        /*怎么做服务端验证啊。。我不想开个ajax借口啊。。草了。。*/
+
+
+        /*
+         $("#add_channel_form btn.submit").keypress(function (e) {
+         if (e.which == 13) {
+         if ($add_channel_form.validate().form()) {
+         $add_channel_form.submit();
+         }
+         return false;
+         }
+         });
+         */
+    });
+</script>
+</body>
+</html>
