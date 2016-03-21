@@ -125,7 +125,7 @@
             },
             messages: {
                 agent_id: {required: 'agent_id is required'},
-                channel_name: {required: 'channel_name is required', maxlength: '最大长度为255', unique_name: '渠道名已添加过'}
+                channel_name: {required: 'channel_name is required', maxlength: '最大长度为255', remote: '渠道名已添加过'}
             },
             highlight: function (element) {
                 $(element).closest('.form-group').addClass('has-error');
